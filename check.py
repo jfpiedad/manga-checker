@@ -79,7 +79,7 @@ async def parse_data(html_data, url):
             parsed_chapter = chapter.text.lower().strip()
             try:
                 chapter_number = (
-                    re.search(r"chapter\s+\d+(\.\d+)?", parsed_chapter)
+                    re.search(r"chapter\s+\d+([.-]\d+)?", parsed_chapter)
                     .group(0)
                     .split(" ")[1]
                 )
@@ -88,6 +88,8 @@ async def parse_data(html_data, url):
                 elif chapter_number == last_read_chapter:
                     break
             except IndexError:
+                continue
+            except AttributeError:
                 continue
 
         return count
@@ -110,7 +112,7 @@ def parse_similar_data(soup: BeautifulSoup, **kwargs):
         parsed_chapter = chapter.text.lower().strip()
         try:
             chapter_number = (
-                re.search(r"chapter\s+\d+(\.\d+)?", parsed_chapter)
+                re.search(r"chapter\s+\d+([.-]\d+)?", parsed_chapter, re.IGNORECASE)
                 .group(0)
                 .split(" ")[1]
             )
@@ -148,7 +150,7 @@ def get_last_read_chapter(title):
     with TinyDB("mangas.json") as db:
         try:
             manga = db.get(Manga.title == title.strip())
-            return str(manga["last_read_chapter"]).strip()
+            return manga["last_read_chapter"].strip()
         except Exception as e:
             return f"An error occurred when retrieving the last read chapter. {e}"
 
