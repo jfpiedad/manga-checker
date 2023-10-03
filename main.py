@@ -1,8 +1,11 @@
 import argparse
 import asyncio
+import time
+
+import utility
 
 from check import check_new_chapters
-from utility import check_chapter_number_validity
+
 
 parser = argparse.ArgumentParser(description="Check New Manga Chapters")
 subparser = parser.add_subparsers(title="commands", dest="command")
@@ -15,37 +18,43 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     if args.command == "check":
+        start = time.time()
         try:
             asyncio.run(check_new_chapters())
         except Exception as e:
             print(f"There was an error: {e}")
+        end = time.time() - start
+        print(f"Time To Finish: {end: .2f}s")
     elif args.command == "add":
-        """
-        ISUD PANI NAKOG FUNCTION PARA DI GUBOT OG PARA MABUHATAN OG TESTS
-        """
         try:
-            # while True:
-            #     manga_title = input("Manga Title: ")
+            while True:
+                manga_title = input("Manga Title: ")
 
-            #     if manga_title == "":
-            #         print("Title cannot be empty or null")
-            #         continue
-            #     else:
-            #         break
+                if utility.check_manga_title_validity(manga_title):
+                    break
+
+                print("Title cannot be an empty string!")
             while True:
                 last_read_chapter = input("Last Chapter Read: ")
 
-                valid = check_chapter_number_validity(last_read_chapter)
+                if utility.check_chapter_number_validity(last_read_chapter):
+                    break
 
-                if not valid:
-                    print("Please enter a valid number")
-                    continue
+                print("Please enter a valid number between 0 and 1000!")
 
-                validation_only_number = float(last_read_chapter.replace("-", ".", 1))
-                if validation_only_number < 0 or validation_only_number > 1000:
-                    print("Chapter number must not be negative or greater than 1000")
+            while True:
+                manga_url = input("Manga Website URL: ")
 
-                break
+                if utility.check_manga_url_validity(manga_url):
+                    break
+
+                print("Please enter a valid URL!")
+
+            manga_info = {
+                "title": manga_title,
+                "last_chapter": last_read_chapter,
+                "url": manga_url,
+            }
 
         except KeyboardInterrupt:
             print("Adding manga is cancelled. Ok bye!")
