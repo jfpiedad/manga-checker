@@ -3,7 +3,6 @@ import asyncio
 import time
 
 import utility
-
 from check import check_new_chapters
 
 
@@ -56,7 +55,9 @@ if __name__ == "__main__":
                 "url": manga_url,
             }
 
+            utility.add_manga_to_list(manga_info)
+            print("Manga Successfully added to the list!")
         except KeyboardInterrupt:
-            print("Adding manga is cancelled. Ok bye!")
+            print("\nAdding manga is cancelled. Ok bye!")
     elif args.command == "update":
         pass
