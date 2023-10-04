@@ -1,11 +1,10 @@
-from bs4 import BeautifulSoup
-from tinydb import TinyDB
+import re
+import asyncio
 from urllib.parse import urlparse
 
-import asyncio
 import aiohttp
-
-import re
+from bs4 import BeautifulSoup
+from tinydb import TinyDB
 
 
 async def check_new_chapters():
@@ -26,13 +25,13 @@ async def check_new_chapters():
         tasks.append(task)
 
     # html_data = await fetch_manga_data(
-    #     "https://immortalupdates.com/manga/i-became-an-evolving-space-monster/"
+    #     "https://culturedworks.com/manga/castle-2-pinnacle/"
     # )
     # task = asyncio.create_task(
     #     parse_data(
     #         html_data,
-    #         "14",
-    #         "https://immortalupdates.com/manga/i-became-an-evolving-space-monster/",
+    #         "12",
+    #         "https://culturedworks.com/manga/castle-2-pinnacle/",
     #     )
     # )
     # tasks.append(task)
@@ -49,7 +48,7 @@ async def check_new_chapters():
 
 async def fetch_manga_data(manga_url):
     """
-    Fetches the HTML of the website.
+    Fetches the HTML data of the website.
     """
     async with aiohttp.ClientSession() as session:
         async with session.get(manga_url) as response:
@@ -130,7 +129,7 @@ def classify_manga_url(manga_url):
     """
     Classifies different manga websites for parsing data.\n
     Websites have different format, so it is classified to
-    parse according to the classification.
+    parse according to the classification.\n
     """
     parsed_manga_url = urlparse(manga_url)
     domain = parsed_manga_url.netloc
