@@ -15,15 +15,19 @@ async def check_new_chapters():
     url = 2
     mangas_info = [info for info in get_manga_info()]
 
+    timeout = aiohttp.ClientTimeout(total=5)
+
     async with aiohttp.ClientSession() as session:
-        tasks_set_1 = [fetch_manga_data(session, manga[url]) for manga in mangas_info]
+        tasks_set_1 = [
+            fetch_manga_data(manga[url], session, timeout) for manga in mangas_info
+        ]
         results_set_1 = await asyncio.gather(*tasks_set_1)
 
     tasks_set_2 = []
 
     for manga, html_data in zip(mangas_info, results_set_1):
         task = asyncio.create_task(
-            parse_data(html_data, manga[last_read_chapter], manga[url])
+            parse_data(manga[last_read_chapter], manga[url], html_data)
         )
         tasks_set_2.append(task)
 
@@ -42,25 +46,33 @@ async def check_new_chapters():
     results_set_2 = await asyncio.gather(*tasks_set_2)
 
     for manga, total in zip(mangas_info, results_set_2):
-        if total != 0:
+        if total == -1:
+            print(f"{manga[0]} : Timeout")
+        elif total != 0:
             print(f"{manga[0]} : {total} new chapters")
 
     if not any(results_set_2):
         print("There Are No New Chapters At The Moment.")
 
 
-async def fetch_manga_data(session, manga_url):
+async def fetch_manga_data(manga_url, session, timeout):
     """
     Fetches the HTML data of the website.
     """
-    async with session.get(manga_url) as response:
-        return await response.text()
+    try:
+        async with session.get(manga_url, timeout=timeout) as response:
+            return await response.text()
+    except TimeoutError:
+        return "Timeout"
 
 
-async def parse_data(html_data, last_read_chapter, manga_url):
+async def parse_data(last_read_chapter, manga_url, html_data):
     """
     Parse the HTML data using Beautiful Soup.
     """
+    if html_data == "Timeout":
+        return -1
+
     classification = classify_manga_url(manga_url)
 
     soup = BeautifulSoup(html_data, "html.parser")
@@ -77,28 +89,10 @@ async def parse_data(html_data, last_read_chapter, manga_url):
         chapters_section = soup.find("div", class_="eplister")
         list_of_chapters = chapters_section.find_all("span", class_="chapternum")
 
-        count = 0
-        for chapter in list_of_chapters:
-            parsed_chapter = chapter.text.lower().strip()
-            try:
-                chapter_number = (
-                    re.search(r"chapter\s+\d+([.-]\d+)?", parsed_chapter)
-                    .group(0)
-                    .split(" ")[1]
-                )
-                if chapter_number != last_read_chapter:
-                    count += 1
-                elif chapter_number == last_read_chapter:
-                    break
-            except IndexError:
-                continue
-            except AttributeError:
-                continue
-
-        return count
+        return count_new_chapters(last_read_chapter, list_of_chapters)
 
 
-def parse_similar_data(soup: BeautifulSoup, **kwargs):
+def parse_similar_data(soup, **kwargs):
     """
     Parse HTML Data with similar formats.\n
     Created this function to reduce boilerplate code.
@@ -106,25 +100,7 @@ def parse_similar_data(soup: BeautifulSoup, **kwargs):
     chapters_section = soup.find("ul", class_=kwargs["ul_class"])
     list_of_chapters = chapters_section.find_all("a")
 
-    count = 0
-    for chapter in list_of_chapters:
-        parsed_chapter = chapter.text.lower().strip()
-        try:
-            chapter_number = (
-                re.search(r"chapter\s+\d+([.-]\d+)?", parsed_chapter, re.IGNORECASE)
-                .group(0)
-                .split(" ")[1]
-            )
-            if chapter_number != kwargs["last_read_chapter"]:
-                count += 1
-            elif chapter_number == kwargs["last_read_chapter"]:
-                break
-        except IndexError:
-            continue
-        except AttributeError:
-            continue
-
-    return count
+    return count_new_chapters(kwargs["last_read_chapter"], list_of_chapters)
 
 
 def classify_manga_url(manga_url):
@@ -139,6 +115,28 @@ def classify_manga_url(manga_url):
     parsed_manga_url_name = domain.split(".")[0]
 
     return parsed_manga_url_name.strip()
+
+
+def count_new_chapters(last_read_chapter, list_of_chapters):
+    count = 0
+    for chapter in list_of_chapters:
+        parsed_chapter = chapter.text.lower().strip()
+        try:
+            chapter_number = (
+                re.search(r"chapter\s+\d+([.-]\d+)?", parsed_chapter)
+                .group(0)
+                .split(" ")[1]
+            )
+            if chapter_number != last_read_chapter:
+                count += 1
+            elif chapter_number == last_read_chapter:
+                break
+        except IndexError:
+            continue
+        except AttributeError:
+            continue
+
+    return count
 
 
 def get_manga_info():
