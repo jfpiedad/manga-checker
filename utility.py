@@ -44,24 +44,12 @@ def manga_url_validity(manga_url):
 
 
 def check_manga_existence(manga_title):
-    manga_regex = manga_title_regex_matcher(manga_title)
     Manga = Query()
 
     with TinyDB("mangas.json") as db:
-        is_present = db.contains(Manga.title.matches(manga_regex, re.IGNORECASE))
+        is_present = db.contains(Manga.title.matches(manga_title, re.IGNORECASE))
 
     return is_present
-
-
-def manga_title_regex_matcher(manga_title):
-    regex = r"^"
-
-    for manga in manga_title.split():
-        regex += rf"{re.escape(manga)}\s"
-
-    regex = regex.rstrip("\\s") + "$"
-
-    return regex
 
 
 if __name__ == "__main__":
