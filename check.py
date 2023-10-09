@@ -15,14 +15,17 @@ async def check_new_chapters():
     url = 2
     mangas_info = [info for info in get_manga_info()]
 
-    tasks = []
+    async with aiohttp.ClientSession() as session:
+        tasks_set_1 = [fetch_manga_data(session, manga[url]) for manga in mangas_info]
+        results_set_1 = await asyncio.gather(*tasks_set_1)
 
-    for manga in mangas_info:
-        html_data = await fetch_manga_data(manga[url])
+    tasks_set_2 = []
+
+    for manga, html_data in zip(mangas_info, results_set_1):
         task = asyncio.create_task(
             parse_data(html_data, manga[last_read_chapter], manga[url])
         )
-        tasks.append(task)
+        tasks_set_2.append(task)
 
     # html_data = await fetch_manga_data(
     #     "https://culturedworks.com/manga/castle-2-pinnacle/"
@@ -36,23 +39,22 @@ async def check_new_chapters():
     # )
     # tasks.append(task)
 
-    results = await asyncio.gather(*tasks)
+    results_set_2 = await asyncio.gather(*tasks_set_2)
 
-    for manga, total in zip(mangas_info, results):
+    for manga, total in zip(mangas_info, results_set_2):
         if total != 0:
             print(f"{manga[0]} : {total} new chapters")
 
-    if not any(results):
+    if not any(results_set_2):
         print("There Are No New Chapters At The Moment.")
 
 
-async def fetch_manga_data(manga_url):
+async def fetch_manga_data(session, manga_url):
     """
     Fetches the HTML data of the website.
     """
-    async with aiohttp.ClientSession() as session:
-        async with session.get(manga_url) as response:
-            return await response.text()
+    async with session.get(manga_url) as response:
+        return await response.text()
 
 
 async def parse_data(html_data, last_read_chapter, manga_url):
@@ -141,20 +143,19 @@ def classify_manga_url(manga_url):
 
 def get_manga_info():
     """
-    Retrieves all manga info.\n
-    Title and url are extracted.
+    Retrieves all manga info.
     """
     with TinyDB("mangas.json") as db:
-        titles_arr = []
+        mangas_arr = []
         try:
             for entry in db.all():
-                titles_arr.append(
+                mangas_arr.append(
                     [entry["title"], entry["last_read_chapter"], entry["url"]]
                 )
         except Exception as e:
             return f"An error occurred when retrieving the manga title. {e}"
 
-    return titles_arr
+    return mangas_arr
 
 
 if __name__ == "__main__":
