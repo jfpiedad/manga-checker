@@ -10,7 +10,7 @@ def add_manga():
         manga_info = manga_info_inputs(1)
         insert_manga_in_db(manga_info)
 
-        print("Manga successfully added to the list!")
+        print("Manga successfully added in the list!")
     except KeyboardInterrupt:
         print("\nAdding manga is cancelled.")
 
@@ -28,9 +28,19 @@ def update_manga():
 
         update_manga_in_db(manga_info)
 
-        print("Manga successfully updated to the list!")
+        print("Manga successfully updated in the list!")
     except KeyboardInterrupt:
         print("\nUpdating manga is cancelled.")
+
+
+def delete_manga():
+    try:
+        manga_title = manga_info_inputs(3)
+        delete_manga_in_db(manga_title)
+
+        print("Manga successfully deleted in the list")
+    except KeyboardInterrupt:
+        print("\nDeleting manga is cancelled.")
 
 
 def insert_manga_in_db(manga_info):
@@ -39,24 +49,29 @@ def insert_manga_in_db(manga_info):
 
 
 def update_manga_in_db(manga_info):
-    manga_regex = utility.manga_title_regex_matcher(manga_info["title"])
     Manga = Query()
     with TinyDB("mangas.json", indent=4, separators=(",", ": ")) as db:
-        db.update(manga_info, Manga.title.matches(manga_regex, re.IGNORECASE))
+        db.update(manga_info, Manga.title.matches(manga_info["title"], re.IGNORECASE))
+
+
+def delete_manga_in_db(manga_title):
+    Manga = Query()
+    with TinyDB("mangas.json", indent=4, separators=(",", ": ")) as db:
+        db.remove(Manga.title.matches(manga_title, re.IGNORECASE))
 
 
 def manga_info_inputs(operation):
     """
     Ask user input for manga information.
 
-    :param int operation: 1 = add; 2 = update
+    :param int operation: 1 = add; 2 = update; 3 = delete
     """
     last_read_chapter = ""
     manga_url = ""
     flag = 4
 
     while True:
-        manga_title = input("Manga Title: ")
+        manga_title = input("Manga Title: ").title()
 
         if not utility.manga_title_validity(manga_title):
             print("Title cannot be an empty string!")
@@ -69,6 +84,9 @@ def manga_info_inputs(operation):
             break
 
         print("Manga is not in the list!")
+
+    if operation == 3:
+        return manga_title
 
     if operation == 2:
         while True:
@@ -104,7 +122,7 @@ def manga_info_inputs(operation):
             print("Please enter a valid URL!")
 
     manga_info = {
-        "title": manga_title.title(),
+        "title": manga_title,
         "last_read_chapter": last_read_chapter,
         "url": manga_url,
     }
