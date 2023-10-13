@@ -52,5 +52,16 @@ def check_manga_existence(manga_title):
     return is_present
 
 
+def get_all_manga(**kwargs):
+    mangas = []
+
+    with TinyDB("mangas.json") as db:
+        for data in db.all():
+            mangas.append([data["title"], data["last_read_chapter"]])
+
+    for manga in mangas:
+        print(manga)
+
+
 if __name__ == "__main__":
     print(check_manga_existence("tower of god"))
