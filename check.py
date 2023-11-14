@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import aiohttp
 from bs4 import BeautifulSoup
 from tinydb import TinyDB
+from tqdm.asyncio import tqdm_asyncio
 
 
 async def check_new_chapters():
@@ -19,61 +20,47 @@ async def check_new_chapters():
 
     async with aiohttp.ClientSession() as session:
         tasks_set_1 = [
-            fetch_manga_data(manga[url], session, timeout) for manga in mangas_info
+            fetch_manga_data(manga[last_read_chapter], manga[url], session, timeout)
+            for manga in mangas_info
         ]
-        results_set_1 = await asyncio.gather(*tasks_set_1)
 
-    tasks_set_2 = []
-
-    for manga, html_data in zip(mangas_info, results_set_1):
-        task = asyncio.create_task(
-            parse_data(manga[last_read_chapter], manga[url], html_data)
+        results_set_1 = await tqdm_asyncio.gather(
+            *tasks_set_1, desc="Retrieving Manga Information", ncols=100
         )
-        tasks_set_2.append(task)
 
-    # html_data = await fetch_manga_data(
-    #     "https://culturedworks.com/manga/castle-2-pinnacle/"
-    # )
-    # task = asyncio.create_task(
-    #     parse_data(
-    #         html_data,
-    #         "12",
-    #         "https://culturedworks.com/manga/castle-2-pinnacle/",
-    #     )
-    # )
-    # tasks.append(task)
-
-    results_set_2 = await asyncio.gather(*tasks_set_2)
-
-    for manga, total in zip(mangas_info, results_set_2):
+    for manga, total in zip(mangas_info, results_set_1):
         if total == -1:
             print(f"{manga[0]} : Timeout")
         elif total != 0:
             print(f"{manga[0]} : {total} new chapters")
 
-    if not any(results_set_2):
+    if not any(results_set_1):
         print("There Are No New Chapters At The Moment.")
 
 
-async def fetch_manga_data(manga_url, session, timeout):
+async def fetch_manga_data(last_read_chapter, manga_url, session, timeout):
     """
     Fetches the HTML data of the website.
     """
     try:
         async with session.get(manga_url, timeout=timeout) as response:
-            return await response.text()
+            manga_data = await response.text()
     except TimeoutError:
-        return "Timeout"
+        return -1
+
+    return parse_data(last_read_chapter, manga_url, manga_data)
 
 
-async def parse_data(last_read_chapter, manga_url, html_data):
+def parse_data(last_read_chapter, manga_url, html_data):
     """
     Parse the HTML data using Beautiful Soup.
     """
-    if html_data == "Timeout":
-        return -1
+    valid_domains = ["chapmanganato", "manganato", "immortalupdates", "culturedworks"]
 
     classification = classify_manga_url(manga_url)
+
+    if classification not in valid_domains:
+        return -1
 
     soup = BeautifulSoup(html_data, "html.parser")
 
@@ -89,7 +76,7 @@ async def parse_data(last_read_chapter, manga_url, html_data):
         chapters_section = soup.find("div", class_="eplister")
         list_of_chapters = chapters_section.find_all("span", class_="chapternum")
 
-        return count_new_chapters(last_read_chapter, list_of_chapters)
+    return count_new_chapters(last_read_chapter, list_of_chapters)
 
 
 def parse_similar_data(soup, **kwargs):
